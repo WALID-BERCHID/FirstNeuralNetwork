@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drawing Application</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f8f9fa;
+        }
+
+        .container {
+            margin-top: 30px;
+        }
+
+        h1 {
+            color: #007bff;
+            text-align: center;
+        }
+
+        #drawingCanvas {
+            border: 2px solid #007bff;
+            background-color: #000; /* Set black background for the drawing panel */
+            margin: 20px auto;
+            display: block;
+        }
+
+        #submitBtn, #clearBtn {
+            margin: 10px;
+        }
+
+        .alert {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Drawing Application</h1>
+
+        <canvas id="drawingCanvas" width="28" height="28" style="border:1px solid #000;"></canvas>
+
+        <div class="text-center">
+            <button id="submitBtn" class="btn btn-primary">Submit</button>
+            <button id="clearBtn" class="btn btn-secondary">Clear</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const canvas = document.getElementById('drawingCanvas');
+            const context = canvas.getContext('2d');
+            let isDrawing = false;
+
+            // Event listeners for drawing
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+
+            // Submit button click event
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.addEventListener('click', submitDrawing);
+
+            // Clear button click event
+            const clearBtn = document.getElementById('clearBtn');
+            clearBtn.addEventListener('click', clearCanvas);
+
+            function startDrawing(event) {
+                isDrawing = true;
+                // Set fill color to black (background color of the drawing panel)
+                context.fillStyle = '#000';
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                draw(event);
+            }
+
+            function draw(event) {
+                if (!isDrawing) return;
+
+                context.lineWidth = 1;
+                context.lineCap = 'round';
+                // Set stroke color to white for the lines
+                context.strokeStyle = '#fff';
+
+                context.lineTo(event.clientX - canvas.offsetLeft, event.clientY - canvas.offsetTop);
+                context.stroke();
+                context.beginPath();
+                context.moveTo(event.clientX - canvas.offsetLeft, event.clientY - canvas.offsetTop);
+            }
+
+            function stopDrawing() {
+                isDrawing = false;
+                context.beginPath();
+            }
+
+            function submitDrawing() {
+    // Disable the submit button
+    submitBtn.disabled = true;
+
+    // Get the canvas data URL
+    const imageData = canvas.toDataURL();
+
+    // Create a new Image object
+    const img = new Image();
+
+    // Wait for the image to load
+    img.onload = function () {
+        // Create a temporary canvas
+        const tempCanvas = document.createElement('canvas');
+        const tempContext = tempCanvas.getContext('2d');
+
+        // Set the dimensions of the temporary canvas
+        tempCanvas.width = 28;
+        tempCanvas.height = 28;
+
+        // Draw the image on the temporary canvas
+        tempContext.drawImage(img, 0, 0, 28, 28);
+
+        // Get the resized image data from the temporary canvas
+        const resizedImageData = tempCanvas.toDataURL();
+
+        // Send the resized image data to the server
+        fetch('/predict', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ imageData: resizedImageData }),
+        })
+        .then(response => response.text())
+        .then(result => {
+            alert('Prediction: ' + result);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        })
+        .finally(() => {
+            // Enable the submit button after the request is complete
+            submitBtn.disabled = false;
+        });
+    };
+
+    // Set the src attribute to the canvas data URL
+    img.src = imageData;
+}
+
+            function clearCanvas() {
+                context.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        });
+    </script>
+</body>
+</html>
